@@ -316,7 +316,7 @@ y_sorted = y[order]
 plt.figure()
 plt.scatter(x, y, s=10, alpha=0.35, label="All (seed,walls)")
 
-# Optional: binned median + 10-90% band to show trend
+# binned median + 10-90% band to show trend
 n_bins = 20
 bins = np.quantile(x_sorted, np.linspace(0.0, 1.0, n_bins + 1))
 bin_idx = np.digitize(x_sorted, bins[1:-1], right=True)
