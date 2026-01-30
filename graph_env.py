@@ -409,7 +409,7 @@ class GraphEnv():
                         display[i, j] = cm(mat[i, j])
             if ax is None:
                 ax = plt.gca()
-            im = ax.imshow(display, aspect="equal", interpolation="nearest", **imshow_kwargs)
+            im = ax.imshow(display, aspect="equal", **imshow_kwargs)
             ax.set_xticks([])
             ax.set_yticks([])
             if colorbar:

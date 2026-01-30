@@ -173,19 +173,7 @@ class LapRep():
 
         self.optimizer = optim.AdamW(self.network.parameters(), lr=config.learning_rate, eps = 1e-10)
 
-
     def neg_loss(self, x, c=1.0, reg=0.0):
-        """
-        x: n * d.
-        sample based approximation for
-        (E[x x^T] - c * I / d)^2
-            = E[(x^T y)^2] - 2c E[x^T x] / d + c^2 / d
-        #
-        An optional regularization of
-        reg * E[(x^T x - c)^2] / n
-            = reg * E[(x^T x)^2 - 2c x^T x + c^2] / n
-        for reg in [0, 1]
-        """
         n = x.shape[0]
         d = x.shape[1]
         inprods = x @ x.T
