@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -10,7 +11,16 @@ import tyro
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.collections import LineCollection
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from graph_env import GraphEnv
+from utils import (
+    compute_stationary_distribution,
+    policy_induced_transition_matrix,
+    uniform_policy,
+)
 
 from scipy.linalg import eigh
 
@@ -64,6 +74,21 @@ def build_nx_graph(env: GraphEnv) -> nx.Graph:
         for neighbor in neighbors:
             graph.add_edge(node, neighbor)
     return graph
+
+
+def compute_representation_lambda2(env: GraphEnv) -> float:
+    policy = uniform_policy(env)
+    P_pi = policy_induced_transition_matrix(env, policy)
+    phi = compute_stationary_distribution(P_pi)
+    Phi = np.diag(phi)
+
+    L = Phi - (Phi @ P_pi + P_pi.T @ Phi) / 2
+    inv_phi = np.diag(1.0 / phi)
+    normalized_laplacian = inv_phi @ L
+
+    eigvals = np.linalg.eigvals(normalized_laplacian)
+    eigvals = np.sort(eigvals.real)
+    return float(eigvals[1])
 
 
 def draw_gridworld(ax: plt.Axes, env: GraphEnv) -> None:
@@ -131,7 +156,7 @@ def draw_graph(ax: plt.Axes, env: GraphEnv, node_size: int, line_width: float) -
 
     pos = {(r, c): (c, -r) for r in range(env.n) for c in range(env.m)}
 
-    #pos = koren_degree_normalized_layout(graph)
+    pos = koren_degree_normalized_layout(graph)
 
     """
         pos = nx.spring_layout(
@@ -140,7 +165,7 @@ def draw_graph(ax: plt.Axes, env: GraphEnv, node_size: int, line_width: float) -
             iterations=300,  # usually gives a cleaner result
         )
     """
-    
+
     #pos = nx.kamada_kawai_layout(graph)
 
     #pos = nx.spectral_layout(graph)
@@ -181,14 +206,19 @@ def make_page(env: GraphEnv, wall_count: int, max_walls: int, args: Args) -> plt
     fig, axes = plt.subplots(1, 2, figsize=(14, 7), constrained_layout=True)
     draw_gridworld(axes[0], env)
     draw_graph(axes[1], env, node_size=args.graph_node_size, line_width=args.graph_line_width)
+    lambda2 = compute_representation_lambda2(env)
 
     graph = build_nx_graph(env)
+    title_text = (
+        f"Grid {env.n}x{env.m} | walls={wall_count}/{max_walls} | "
+        f"open edges={graph.number_of_edges()} | nodes={graph.number_of_nodes()} | "
+        f"seed={env.seed} | "
+        rf"$\mathbf{{\lambda_2 = {lambda2:.6f}}}$"
+    )
     fig.suptitle(
-        (
-            f"Grid {env.n}x{env.m} | walls={wall_count}/{max_walls} | "
-            f"open edges={graph.number_of_edges()} | nodes={graph.number_of_nodes()} | seed={env.seed}"
-        ),
+        title_text,
         fontsize=14,
+        color="#ff6b81",
     )
     return fig
 
