@@ -12,6 +12,8 @@ from matplotlib.collections import LineCollection
 
 from graph_env import GraphEnv
 
+from scipy.linalg import eigh
+
 
 @dataclass
 class Args:
@@ -109,10 +111,39 @@ def draw_gridworld(ax: plt.Axes, env: GraphEnv) -> None:
     ax.set_yticks([])
     ax.set_title("Gridworld", fontsize=12)
 
+def koren_degree_normalized_layout(G):
+    A = nx.to_numpy_array(G, dtype=float)
+    d = A.sum(axis=1)
+    D = np.diag(d)
+    L = D - A
+
+    # Solve L u = mu D u
+    vals, vecs = eigh(L, D)
+
+    # Skip the trivial first eigenvector
+    x = vecs[:, 1]
+    y = vecs[:, 2]
+
+    return {node: (x[i], y[i]) for i, node in enumerate(G.nodes())}
 
 def draw_graph(ax: plt.Axes, env: GraphEnv, node_size: int, line_width: float) -> None:
     graph = build_nx_graph(env)
+
     pos = {(r, c): (c, -r) for r in range(env.n) for c in range(env.m)}
+
+    #pos = koren_degree_normalized_layout(graph)
+
+    """
+        pos = nx.spring_layout(
+            graph,
+            seed=0,          # reproducible
+            iterations=300,  # usually gives a cleaner result
+        )
+    """
+    
+    #pos = nx.kamada_kawai_layout(graph)
+
+    #pos = nx.spectral_layout(graph)
 
     nx.draw_networkx_edges(
         graph,
