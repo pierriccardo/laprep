@@ -3,3 +3,4 @@ tyro
 numpy
 torch
 tqdm
+networkx

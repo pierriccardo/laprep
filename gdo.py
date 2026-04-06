@@ -36,6 +36,7 @@ class Config:
     m: int = 10
     n_walls: int = 20
     max_steps: int = 1
+    transition_noise: float = 0.0  # η: P=(1-η)P_det+η Unif(all states); 0=deterministic
 
     # Misc
     device: str = "cpu"
@@ -258,10 +259,21 @@ if __name__ == "__main__":
     np.random.seed(config.seed)
     rng = np.random.default_rng(config.seed)
 
-    env = GraphEnv(config.n, config.m, config.n_walls, config.seed, max_steps=config.max_steps)
+    env = GraphEnv(
+        config.n,
+        config.m,
+        config.n_walls,
+        config.seed,
+        max_steps=config.max_steps,
+        transition_noise=config.transition_noise,
+    )
     config.n_states = env.n_states
 
-    save_path = os.path.join(config.save_dir, f"gdo_n{config.n}_m{config.m}_w{config.n_walls}_s{config.seed}.pt")
+    noise_tag = "" if config.transition_noise <= 0 else f"_eps{str(config.transition_noise).replace('.', 'p')}"
+    save_path = os.path.join(
+        config.save_dir,
+        f"gdo_n{config.n}_m{config.m}_w{config.n_walls}_s{config.seed}{noise_tag}.pt",
+    )
     if os.path.isfile(save_path):
         print(f"Already trained: {save_path}")
         sys.exit(0)
@@ -289,6 +301,6 @@ if __name__ == "__main__":
         if step % config.log_freq == 0:
             print(f"step {step}" + "".join([f"{k}: {v} " for k, v in metrics.items()]))
 
-    model.save(f"gdo_n{config.n}_m{config.m}_w{config.n_walls}_s{config.seed}.pt")
+    model.save(os.path.basename(save_path))
 
 

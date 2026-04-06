@@ -12,11 +12,23 @@ Edge = Tuple[Coord, Coord]
 
 class GraphEnv():
 
-    def __init__(self, n: int, m: int, n_walls: int, seed: int, goal: Coord | None = None, max_steps: int = 1000) -> None:
+    def __init__(
+        self,
+        n: int,
+        m: int,
+        n_walls: int,
+        seed: int,
+        goal: Coord | None = None,
+        max_steps: int = 1000,
+        transition_noise: float = 0.0,  # η: weight on Unif(all states) in P=(1-η)P_det+η Unif
+    ) -> None:
         self.n = n
         self.m = m
         self.n_walls = n_walls
         self.seed = seed
+        if transition_noise < 0 or transition_noise > 1:
+            raise ValueError(f"transition_noise must be in [0, 1], got {transition_noise}")
+        self.transition_noise = float(transition_noise)
 
         # Max num of step to send truncation signal
         self.max_steps = max_steps
@@ -46,6 +58,7 @@ class GraphEnv():
             3: (0, -1)    # left: decrease col
         }
         self.n_actions = len(self.actions.keys())
+        self._rng = np.random.default_rng(seed)
         self.P = self._transition_matrix()
 
     def get_reward_matrix(self) -> np.ndarray:
@@ -75,7 +88,8 @@ class GraphEnv():
         # Sum over s' weighted by P (for deterministic, equivalent to just picking the one s')
         return np.sum(self.P * R_full, axis=2)
 
-    def _transition_matrix(self):
+    def _transition_matrix_deterministic(self) -> np.ndarray:
+        """Kernel P[s,a,s'] with a single next state (mass 1) per (s,a)."""
         P = np.zeros((self.n_states, self.n_actions, self.n_states), dtype=np.float64)
 
         for s in range(self.n_states):
@@ -93,6 +107,41 @@ class GraphEnv():
                     s_next = s  # Stay in place if move is invalid
                 P[s, a, s_next] = 1.0
         return P
+
+    def mix_transition_global_uniform(self, P_det: np.ndarray, noise_weight: float) -> np.ndarray:
+        """
+        Mix deterministic transitions with uniform teleportation over all states.
+
+        P[s,a,:] = (1 - η) · P_det[s,a,:] + η · Unif({0,…,n-1})
+
+        ``noise_weight`` η ∈ [0, 1] is the mass on the global uniform; η=0 is
+        fully deterministic, η=1 ignores the action and jumps uniformly
+        (maximum connectivity in one step). This strengthens mixing relative to
+        the grid graph as η increases.
+
+        Args:
+            P_det: Shape (n_states, n_actions, n_states), rows summing to 1.
+            noise_weight: η, weight on Unif(all states).
+
+        Returns:
+            Stochastic transition kernel of same shape, rows summing to 1.
+        """
+        if noise_weight <= 0:
+            return P_det.copy()
+        if noise_weight > 1:
+            raise ValueError(f"noise_weight must be in [0, 1], got {noise_weight}")
+        n = self.n_states
+        u = np.full((1, 1, n), 1.0 / n, dtype=np.float64)
+        eta = float(noise_weight)
+        if eta >= 1.0:
+            return np.broadcast_to(u, P_det.shape).copy()
+        return (1.0 - eta) * P_det + eta * u
+
+    def _transition_matrix(self) -> np.ndarray:
+        P_det = self._transition_matrix_deterministic()
+        if self.transition_noise <= 0:
+            return P_det
+        return self.mix_transition_global_uniform(P_det, self.transition_noise)
 
     def _make_graph_by_walls(self):
         n_states = self.n * self.m
@@ -424,15 +473,17 @@ class GraphEnv():
         return -1.0
 
     def step(self, a: int):
-        #s_next = self.rng.choice(self.n_states, p=self.P[s, a])
-        pos = self.id2pos[self.state]
-        action = self.actions[a]
-
-        next_pos = (pos[0] + action[0], pos[1] + action[1])
-        if next_pos in self.graph[pos]:
-            s_next = self.pos2id[next_pos]
+        if self.transition_noise > 0:
+            s_next = int(self._rng.choice(self.n_states, p=self.P[self.state, a]))
         else:
-            s_next = self.state
+            pos = self.id2pos[self.state]
+            action = self.actions[a]
+
+            next_pos = (pos[0] + action[0], pos[1] + action[1])
+            if next_pos in self.graph[pos]:
+                s_next = self.pos2id[next_pos]
+            else:
+                s_next = self.state
 
         # Reward: +1 for entering goal, -1 otherwise (including leaving goal)
         r = self.reward(self.state, a, s_next)
