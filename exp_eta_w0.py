@@ -73,8 +73,8 @@ class Args:
     k: int = 20
     n_seeds: int = 5
     seed: int = 42
-    #etas: str = "0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9"
-    etas: str = "0,0.001,0.002,0.003,0.004,0.005,0.006,0.007,0.008,0.009"
+    etas: str = "0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9"
+    # etas: str = "0,0.001,0.002,0.003,0.004,0.005,0.006,0.007,0.008,0.009"
     """Comma-separated η in [0, 1] for P=(1-η)P_det+η Unif(all states)."""
     save_dir: Optional[str] = None
     """If unset, ``experiments/exp_{rows}x{cols}_w0_eta_nseeds{n}_k{k}``."""
@@ -332,9 +332,9 @@ def main() -> None:
     )
     ax = plt.gca()
     _log_axis_exponent_once(ax, "y")
-    plt.xlabel(r"$\eta$ (global teleport weight)")
+    plt.xlabel(r"$\eta$ ")
     plt.ylabel(r"$\lambda_2$")
-    plt.title(_title(args), fontsize=9)
+    # plt.title(_title(args), fontsize=9)
     plt.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(args.save_dir, "lambda2_vs_eta.pdf"), format="pdf")
@@ -358,9 +358,9 @@ def main() -> None:
         alpha=0.3,
         label=f"GDO 10-90% ({args.n_seeds} seeds)",
     )
-    plt.xlabel(r"$\eta$ (global teleport weight)")
+    plt.xlabel(r"$\eta$ ")
     plt.ylabel("Error")
-    plt.title(_title(args), fontsize=9)
+    # plt.title(_title(args), fontsize=9)
     plt.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(args.save_dir, "errors_vs_eta.pdf"), format="pdf")
@@ -385,9 +385,9 @@ def main() -> None:
         label=f"GDO 10-90% ({args.n_seeds} seeds)",
     )
     plt.yscale("log")
-    plt.xlabel(r"$\eta$ (global teleport weight)")
+    plt.xlabel(r"$\eta$ ")
     plt.ylabel("Error")
-    plt.title(_title(args), fontsize=9)
+    # plt.title(_title(args), fontsize=9)
     plt.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(args.save_dir, "errors_vs_eta_log.pdf"), format="pdf")
